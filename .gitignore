@@ -1,2 +1,5 @@
-Data/
+data/
 .ipynb_checkpoints/
+.idea
+dataset/__pycache__
+models/__pycache__
