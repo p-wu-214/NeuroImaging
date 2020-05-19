@@ -13,19 +13,16 @@ from torch.utils.data import Dataset
 
 import h5py
 
-import time
-
-BUCKET_PATH = 'gs://trends_dataset'
+BASE_PATH = f'data'
 
 
 def load_dataset():
     # image and mask directories
-    CSV_PATH = f'{BUCKET_PATH}/data'
-    train_data_dir = f'{BUCKET_PATH}/fMRI_train'
+    train_data_dir = f'{BASE_PATH}/fMRI_train'
     print('Reading data...')
-    loading_data = pd.read_csv(f'{CSV_PATH}/loading.csv')
-    train_data = pd.read_csv(f'{CSV_PATH}/train_scores.csv')
-    fnc_data = pd.read_csv(f"{CSV_PATH}/fnc.csv")
+    loading_data = pd.read_csv(f'{BASE_PATH}/loading.csv')
+    train_data = pd.read_csv(f'{BASE_PATH}/train_scores.csv')
+    fnc_data = pd.read_csv(f"{BASE_PATH}/fnc.csv")
     print('Finish reading data...')
     return loading_data, train_data, fnc_data
 
@@ -86,45 +83,42 @@ def select_features(X, y, K):
 
 
 def load_subject(file_name):
-    start = time.time()
-    MRI_PATH = f'/home/pattersonwu/NeuroImaging/train/fMRI_train'
-    subject_data = h5py.File(f'{MRI_PATH}/{file_name}.mat', 'r')['SM_feature']
+    folder_path = f'{BASE_PATH}/fMRI_train'
+    subject_data = h5py.File(f'{folder_path}/{file_name}.mat', 'r')['SM_feature']
     subject_data = np.asarray(subject_data)
     subject_data = np.moveaxis(subject_data, [0, 1, 2, 3], [3, 2, 1, 0])
-    end = time.time()
-    print('Time elapsed for hdf5 file access: ' + str(end-start))
     return subject_data
 
-if __name__ == '__main__':
-    print('Staring program')
-    loading_data, train_data, fnc_data = load_dataset()
-
-    # display_data(loading_data, train_data, fnc_data)
-
-    to_select_feature = join_dataset(loading_data, train_data, fnc_data)
-    to_select_feature = drop_na(to_select_feature)
-    print('Dataset all joined')
-    print(to_select_feature.head())
-
-    X, Y = data_split(to_select_feature)
-    print('X without feature select')
-    print(X.head())
-    print('Y without feature select')
-    print(Y.head())
-
-    X = select_features(X, Y, 100)
-    print('After reduce')
-    print(X)
-
-    print('Reading in fMRI scan data')
-    subject_data = load_subject(X.index[200])
-    X_data = X.loc[X.index[200]]
-    print(subject_data.shape)
-    print(X_data.shape)
-
-    # print('Sample submission')
-    # sample = pd.read_csv(f"{BUCKET_PATH}/sample_submission.csv")
-    # print(sample.shape)
+# if __name__ == '__main__':
+#     print('Staring program')
+#     loading_data, train_data, fnc_data = load_dataset()
+#
+#     # display_data(loading_data, train_data, fnc_data)
+#
+#     to_select_feature = join_dataset(loading_data, train_data, fnc_data)
+#     to_select_feature = drop_na(to_select_feature)
+#     print('Dataset all joined')
+#     print(to_select_feature.head())
+#
+#     X, Y = data_split(to_select_feature)
+#     print('X without feature select')
+#     print(X.head())
+#     print('Y without feature select')
+#     print(Y.head())
+#
+#     X = select_features(X, Y, 100)
+#     print('After reduce')
+#     print(X)
+#
+#     print('Reading in fMRI scan data')
+#     subject_data = load_subject(X.index[200])
+#     X_data = X.loc[X.index[200]]
+#     print(subject_data.shape)
+#     print(X_data.shape)
+#
+#     print('Sample submission')
+#     sample = pd.read_csv(f"{BASE_PATH}/sample_submission.csv")
+#     print(sample.shape)
 
 
 class TrendsDataset(Dataset):

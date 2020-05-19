@@ -1,5 +1,4 @@
-import torch
+import gcsfs
 if __name__ == '__main__':
-    t = torch.rand(4, 4)
-    print(t.shape)
-    print(t.view(-1, 20).shape)
+    fs = gcsfs.GCSFileSystem(project='Tensorflow')
+    fs.ls('trends_dataset')

@@ -15,7 +15,7 @@ if __name__ == '__main__':
 
     max_epoch = 1
     trends_dataset = TrendsDataset()
-    training_loader = DataLoader(trends_dataset, batch_size=24, shuffle=True, num_workers=8, pin_memory=False)
+    training_loader = DataLoader(trends_dataset, batch_size=24, shuffle=True, num_workers=4, pin_memory=True)
 
     resnet = ResNetBasicBlock()
     criterion = torch.nn.L1Loss(reduction='mean')
@@ -26,9 +26,9 @@ if __name__ == '__main__':
         print('Start iterating through')
         start = time.time()
         for test_batch in training_loader:
-            # test_batch = [data.cuda() for data in test_batch]
+            test_batch = [data.cuda() for data in test_batch]
             # scans, X, targets = test_batch
-            start
+            # start
         end = time.time()
-        print('Time for one epoch: ' + str(end-start))
+        print(end-start)
 
