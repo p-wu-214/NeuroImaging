@@ -17,7 +17,6 @@ import time
 
 BUCKET_PATH = 'gs://trends_dataset'
 
-
 def load_dataset():
     # image and mask directories
     CSV_PATH = f'{BUCKET_PATH}/data'
@@ -89,11 +88,13 @@ def load_subject(file_name):
     start = time.time()
     MRI_PATH = f'/home/pattersonwu/NeuroImaging/train/fMRI_train'
     subject_data = h5py.File(f'{MRI_PATH}/{file_name}.mat', 'r')['SM_feature']
-    subject_data = np.asarray(subject_data)
-    subject_data = np.moveaxis(subject_data, [0, 1, 2, 3], [3, 2, 1, 0])
+    result = np.asarray(subject_data)
+    del subject_data
+    result = np.moveaxis(result, [0, 1, 2, 3], [3, 2, 1, 0])
     end = time.time()
     print('Time elapsed for hdf5 file access: ' + str(end-start))
-    return subject_data
+    return result
+
 
 if __name__ == '__main__':
     print('Staring program')
@@ -140,6 +141,7 @@ class TrendsDataset(Dataset):
         id = self.ids[index]
         subject_data = load_subject(id)
         scans = torch.tensor(subject_data, dtype=torch.float)
+        del subject_data
         X = torch.tensor(self.X.loc[id], dtype=torch.float)
         targets = torch.tensor(self.Y.loc[id], dtype=torch.float)
         return [scans, X, targets]
