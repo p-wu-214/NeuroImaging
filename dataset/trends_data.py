@@ -85,15 +85,9 @@ def select_features(X, y, K):
 
 
 def load_subject(file_name):
-    start = time.time()
     MRI_PATH = f'/home/pattersonwu/NeuroImaging/train/fMRI_train'
     subject_data = h5py.File(f'{MRI_PATH}/{file_name}.mat', 'r')['SM_feature']
-    result = np.asarray(subject_data)
-    del subject_data
-    result = np.moveaxis(result, [0, 1, 2, 3], [3, 2, 1, 0])
-    end = time.time()
-    print('Time elapsed for hdf5 file access: ' + str(end-start))
-    return result
+    return subject_data
 
 
 if __name__ == '__main__':
@@ -140,8 +134,13 @@ class TrendsDataset(Dataset):
     def __getitem__(self, index):
         id = self.ids[index]
         subject_data = load_subject(id)
-        scans = torch.tensor(subject_data, dtype=torch.float)
+        start = time.time()
+        scans_transposed = np.transpose(subject_data[()], (3,2,1,0))
         del subject_data
+        scans = torch.tensor(scans_transposed, dtype=torch.float)
+        del scans_transposed
+        end = time.time()
+        print("Time to turn to tensor: " + str(end - start))
         X = torch.tensor(self.X.loc[id], dtype=torch.float)
         targets = torch.tensor(self.Y.loc[id], dtype=torch.float)
         return [scans, X, targets]
