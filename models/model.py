@@ -1,7 +1,5 @@
 import torch.nn as nn
 
-from functools import partial
-
 
 def activation_func(activation):
     return nn.ModuleDict([
@@ -87,9 +85,7 @@ class ResNetBasicBlock(nn.Module):
         x = self.expand_block1(x)
         x = self.expand_block2(x)
         x = self.average_pool(x)
-        print('After average pool ' + str(x.shape))
         x = x.view(-1, 256)
-        print('After view ' + str(x.shape))
         x = self.linear(x)
 
         return x

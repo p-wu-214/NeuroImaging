@@ -1,5 +1,7 @@
-import sys
-import os
+import torch
+
+from torch.utils.data import Dataset
+import torch_xla.core.xla_model as xm
 
 import scipy.signal
 import sklearn.preprocessing
@@ -7,9 +9,6 @@ from sklearn.feature_selection import SelectKBest, f_regression
 from functools import reduce
 import pandas as pd
 import numpy as np
-
-import torch
-from torch.utils.data import Dataset
 
 import h5py
 
@@ -85,7 +84,7 @@ def select_features(X, y, K):
 
 
 def load_subject(file_name):
-    MRI_PATH = f'/home/pattersonwu/NeuroImaging/train/fMRI_train'
+    MRI_PATH = f'/home/pattersonwu/apps/NeuroImaging/data/fMRI_train'
     subject_data = h5py.File(f'{MRI_PATH}/{file_name}.mat', 'r')['SM_feature']
     return subject_data
 
@@ -124,6 +123,8 @@ if __name__ == '__main__':
 
 class TrendsDataset(Dataset):
     def __init__(self):
+        device = xm.xla_device()
+        self.device = device
         loading_data, train_data, fnc_data = load_dataset()
         data1 = join_dataset(loading_data, train_data, fnc_data)
         data1 = drop_na(data1)
@@ -137,12 +138,12 @@ class TrendsDataset(Dataset):
         start = time.time()
         scans_transposed = np.transpose(subject_data[()], (3,2,1,0))
         del subject_data
-        scans = torch.tensor(scans_transposed, dtype=torch.float)
+        scans = torch.tensor(scans_transposed, dtype=torch.float, device=self.device)
         del scans_transposed
         end = time.time()
         print("Time to turn to tensor: " + str(end - start))
-        X = torch.tensor(self.X.loc[id], dtype=torch.float)
-        targets = torch.tensor(self.Y.loc[id], dtype=torch.float)
+        X = torch.tensor(self.X.loc[id], dtype=torch.float, device=self.device)
+        targets = torch.tensor(self.Y.loc[id], dtype=torch.float, device=self.device)
         return [scans, X, targets]
 
     def __len__(self):
