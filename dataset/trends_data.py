@@ -1,3 +1,4 @@
+import sys
 import torch
 
 from torch.utils.data import Dataset
@@ -15,6 +16,7 @@ import h5py
 import time
 
 BUCKET_PATH = 'gs://trends_dataset'
+
 
 def load_dataset():
     # image and mask directories
@@ -84,37 +86,38 @@ def select_features(X, y, K):
 
 
 def load_subject(file_name):
-    MRI_PATH = f'/home/pattersonwu/apps/NeuroImaging/data/fMRI_train'
+    MRI_PATH = f'/home/pattersonwu/apps/NeuroImaging/trends_dataset/fMRI_train'
     subject_data = h5py.File(f'{MRI_PATH}/{file_name}.mat', 'r')['SM_feature']
+    subject_data = np.transpose(subject_data[()], (3, 2, 1, 0))
     return subject_data
 
 
 if __name__ == '__main__':
-    print('Staring program')
-    loading_data, train_data, fnc_data = load_dataset()
-
-    # display_data(loading_data, train_data, fnc_data)
-
-    to_select_feature = join_dataset(loading_data, train_data, fnc_data)
-    to_select_feature = drop_na(to_select_feature)
-    print('Dataset all joined')
-    print(to_select_feature.head())
-
-    X, Y = data_split(to_select_feature)
-    print('X without feature select')
-    print(X.head())
-    print('Y without feature select')
-    print(Y.head())
-
-    X = select_features(X, Y, 100)
-    print('After reduce')
-    print(X)
+    # print('Staring program')
+    # loading_data, train_data, fnc_data = load_dataset()
+    # # display_data(loading_data, train_data, fnc_data)
+    #
+    # to_select_feature = join_dataset(loading_data, train_data, fnc_data)
+    # to_select_feature = drop_na(to_select_feature)
+    # print('Dataset all joined')
+    # print(to_select_feature.head())
+    #
+    # X, Y = data_split(to_select_feature)
+    # print('X without feature select')
+    # print(X.head())
+    # print('Y without feature select')
+    # print(Y.head())
+    #
+    # X = select_features(X, Y, 100)
+    # print('After reduce')
+    # print(X)
 
     print('Reading in fMRI scan data')
-    subject_data = load_subject(X.index[200])
-    X_data = X.loc[X.index[200]]
+    subject_data = load_subject('10001')
+    # X_data = X.loc[X.index[200]]
     print(subject_data.shape)
-    print(X_data.shape)
+    # print(X_data.shape)
+    print(subject_data.min(), subject_data.max(), subject_data.mean())
 
     # print('Sample submission')
     # sample = pd.read_csv(f"{BUCKET_PATH}/sample_submission.csv")
@@ -122,29 +125,30 @@ if __name__ == '__main__':
 
 
 class TrendsDataset(Dataset):
-    def __init__(self):
-        device = xm.xla_device()
-        self.device = device
+    def __init__(self, is_tpu):
+        if is_tpu:
+            self.device = xm.xla_device()
+        else:
+            self.device = None
         loading_data, train_data, fnc_data = load_dataset()
         data1 = join_dataset(loading_data, train_data, fnc_data)
         data1 = drop_na(data1)
-        X, self.Y = data_split(data1)
-        self.X = select_features(X, self.Y, 100)
+        X, Y = data_split(data1)
+        X = select_features(X, Y, 100)
         self.ids = X.index
+        self.X = torch.tensor(X.to_numpy(), dtype=torch.float)
+        self.Y = torch.tensor(Y.to_numpy(), dtype=torch.float)
+        del X, Y
+        print("Size of X " + str(sys.getsizeof(self.X)))
+        print("Size of Y " + str(sys.getsizeof(self.Y)))
 
     def __getitem__(self, index):
-        id = self.ids[index]
-        subject_data = load_subject(id)
-        start = time.time()
-        scans_transposed = np.transpose(subject_data[()], (3,2,1,0))
+        subject_data = load_subject(self.ids[index])
+        X = self.X[index].to(self.device)
+        targets = self.Y[index].to(self.device)
+        scans = torch.tensor(subject_data, dtype=torch.float, device=self.device)
         del subject_data
-        scans = torch.tensor(scans_transposed, dtype=torch.float, device=self.device)
-        del scans_transposed
-        end = time.time()
-        print("Time to turn to tensor: " + str(end - start))
-        X = torch.tensor(self.X.loc[id], dtype=torch.float, device=self.device)
-        targets = torch.tensor(self.Y.loc[id], dtype=torch.float, device=self.device)
-        return [scans, X, targets]
+        return {'scans': scans, 'X': X, 'targets': targets}
 
     def __len__(self):
         return len(self.ids)
