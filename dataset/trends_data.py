@@ -7,6 +7,7 @@ import torch_xla.core.xla_model as xm
 import scipy.signal
 import sklearn.preprocessing
 from sklearn.feature_selection import SelectKBest, f_regression
+from sklearn.model_selection import ShuffleSplit
 from functools import reduce
 import pandas as pd
 import numpy as np
@@ -93,24 +94,24 @@ def load_subject(file_name):
 
 
 if __name__ == '__main__':
-    # print('Staring program')
-    # loading_data, train_data, fnc_data = load_dataset()
-    # # display_data(loading_data, train_data, fnc_data)
-    #
-    # to_select_feature = join_dataset(loading_data, train_data, fnc_data)
-    # to_select_feature = drop_na(to_select_feature)
-    # print('Dataset all joined')
-    # print(to_select_feature.head())
-    #
-    # X, Y = data_split(to_select_feature)
-    # print('X without feature select')
-    # print(X.head())
-    # print('Y without feature select')
-    # print(Y.head())
-    #
-    # X = select_features(X, Y, 100)
-    # print('After reduce')
-    # print(X)
+    print('Staring program')
+    loading_data, train_data, fnc_data = load_dataset()
+    # display_data(loading_data, train_data, fnc_data)
+
+    to_select_feature = join_dataset(loading_data, train_data, fnc_data)
+    to_select_feature = drop_na(to_select_feature)
+    print('Dataset all joined')
+    print(to_select_feature.head())
+
+    X, Y = data_split(to_select_feature)
+    print('X without feature select')
+    print(X.head())
+    print('Y without feature select')
+    print(Y.head())
+
+    X = select_features(X, Y, 100)
+    print('After reduce')
+    print(X)
 
     print('Reading in fMRI scan data')
     subject_data = load_subject('10001')
@@ -125,28 +126,37 @@ if __name__ == '__main__':
 
 
 class TrendsDataset(Dataset):
-    def __init__(self, is_tpu):
-        if is_tpu:
-            self.device = xm.xla_device()
-        else:
-            self.device = None
+    def __init__(self, mode='train'):
         loading_data, train_data, fnc_data = load_dataset()
-        data1 = join_dataset(loading_data, train_data, fnc_data)
-        data1 = drop_na(data1)
-        X, Y = data_split(data1)
+        samples = join_dataset(loading_data, train_data, fnc_data)
+        samples = drop_na(samples)
+
+        # Train validation split using KFold
+        ids = samples.index
+        ss = ShuffleSplit(n_splits=1, test_size=0.2, random_state=1227)
+        for train_index, valid_index in ss.split(ids):
+            self.train_index, self.valid_index = ids[train_index], ids[valid_index]
+        if mode == 'train':
+            print('Train')
+            data = samples.loc[self.train_index]
+        elif mode == 'validation':
+            print('Validation')
+            data = samples.loc[self.valid_index]
+        del samples
+
+        X, Y = data_split(data)
         X = select_features(X, Y, 100)
-        self.ids = X.index
+        self.ids = data.index
         self.X = torch.tensor(X.to_numpy(), dtype=torch.float)
         self.Y = torch.tensor(Y.to_numpy(), dtype=torch.float)
         del X, Y
-        print("Size of X " + str(sys.getsizeof(self.X)))
-        print("Size of Y " + str(sys.getsizeof(self.Y)))
+        print(f'{mode} dataset with X: {self.X.shape} and Y: {self.Y.shape}')
 
     def __getitem__(self, index):
         subject_data = load_subject(self.ids[index])
-        X = self.X[index].to(self.device)
-        targets = self.Y[index].to(self.device)
-        scans = torch.tensor(subject_data, dtype=torch.float, device=self.device)
+        X = self.X[index]
+        targets = self.Y[index]
+        scans = torch.tensor(subject_data, dtype=torch.float)
         del subject_data
         return {'scans': scans, 'X': X, 'targets': targets}
 

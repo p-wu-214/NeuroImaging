@@ -1,6 +1,6 @@
 import torch.nn as nn
 import torch_xla.core.xla_model as xm
-
+import config
 
 def activation_func(activation):
     return nn.ModuleDict([
@@ -35,7 +35,6 @@ class BasicBlock(nn.Module):
         self.conv1 = conv3d(out_ch, out_ch)
         self.conv2 = conv3d(out_ch, out_ch)
         self.conv3 = conv3d(out_ch, out_ch)
-        self.shortcut = nn.Conv3d(in_ch, out_ch, stride=stride, kernel_size=1)
         self.batch = nn.BatchNorm3d(out_ch)
         self.relu = activation_func('relu')
 
@@ -44,9 +43,8 @@ class BasicBlock(nn.Module):
         x = self.conv1(x)
         x = self.conv2(x)
         x = self.conv3(x)
-        x = self.batch(x)
-        residual = self.shortcut(residual)
         x += residual
+        x = self.batch(x)
         x = self.relu(x)
         return x
 
@@ -91,8 +89,8 @@ class ResNetBasicBlock(nn.Module):
         self.expand_block1 = ExpandBlock(64, 64)
         self.basic_block2 = BasicBlock(128, 128)
         self.expand_block2 = ExpandBlock(128, 128)
-        self.average_pool = nn.AdaptiveAvgPool3d((1, 1, 1))
-        self.linear = nn.Linear(256, out_features=5, bias=True)
+        self.average_pool = nn.AdaptiveAvgPool3d((15, 15, 15))
+        self.linear = nn.Linear(15*15*15*256, out_features=5, bias=True)
 
     def forward(self, x):
         x = self.input_conv(x)
@@ -100,12 +98,12 @@ class ResNetBasicBlock(nn.Module):
         x = self.expand_block1(x)
         x = self.basic_block2(x)
         x = self.expand_block2(x)
-        print('Before average pool: ' + str(x.shape))
+        xm.master_print('Before average pool: ' + str(x.shape))
         x = self.average_pool(x)
-        print('After average pool: ' + str(x.shape))
-        x = x.view(-1, 256)
-        print('After view: ' + str(x.shape))
+        xm.master_print('After average pool: ' + str(x.shape))
+        x = x.view(config.hyper_params['batch'], -1)
+        xm.master_print('After view: ' + str(x.shape))
         x = self.linear(x)
-        print('After linear: ' + str(x.shape))
+        xm.master_print('After linear: ' + str(x.shape))
 
         return x
