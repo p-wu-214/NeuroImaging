@@ -143,8 +143,6 @@ def multi_core(index, flags):
         #         average = average + validation_loss.item()
         #         val_loss.append(validation_loss)
         #     del valid_pl_loader
-    print(f'Training loss for epoch: {epoch} average of: {average/count} with count {count}')
-    file.write(f'Training loss for epoch: {epoch} average of: {average/count} with count {count}')
     elapsed_train_time = time.time() - train_start
     print("Process", index, "finished training. Train time was:", elapsed_train_time)
     torch.save(f'epoch: {epoch}, state_dict: {model.state_dict()}, validation loss: {val_loss}, optimizer: {optimizer.state_dict()}',
