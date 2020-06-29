@@ -91,8 +91,6 @@ def multi_core(index, flags):
         sampler=valid_sampler,
         num_workers=flags['num_workers'],
         drop_last=True)
-
-    print('Train with TPU')
     model = NeuroImageModel().to(device).train()
 
     criterion = torch.nn.L1Loss(reduction='mean')
@@ -105,7 +103,6 @@ def multi_core(index, flags):
         # Training time
         train_pl_loader = pl.ParallelLoader(train_loader, [device]).per_device_loader(device)
         start = time.time()
-        print('Start iterating through')
         average = 0
         count = 0
         for batch_num, batch in enumerate(train_pl_loader):
@@ -124,7 +121,6 @@ def multi_core(index, flags):
             count = count + 1
             average = average + loss.item()
             xm.optimizer_step(optimizer, barrier=True)
-        print("Starting validation")
         print(f'Training loss for epoch: {epoch} average of: {average/count} with count {count}')
         file.write(f'Training loss for epoch: {epoch} average of: {average/count} with count {count}')
         # average = 0
