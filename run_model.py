@@ -8,47 +8,9 @@ from torch.utils.data import DataLoader
 import torch_xla.distributed.parallel_loader as pl
 
 from dataset.trends_data import MRIDataset
-# from dataset.trends_data import TrendsDataset
 
 from models.model import NeuroImageModel
-from models.dnn_model import TrendsDNNModel
 import time
-
-
-# def train_with_cpu(train_loader, model, optimizer, criterion):
-#     for epoch in range(max_epoch):
-#         # Training time
-#         start = time.time()
-#         print('Start iterating through')
-#         for index, batch in enumerate(train_loader):
-#             optimizer.zero_grad()
-#             scans = batch['scans']
-#             targets = batch['targets']
-#             output = model(scans)
-#             del scans
-#             loss = criterion(output, targets)
-#             del targets
-#             loss.backward()
-#             xm.master_print(f'index: {index} loss: {loss.item()}')
-#             xm.optimizer_step(optimizer)
-#
-#         end = time.time()
-#         print('Time for one epoch: ' + str(end-start))
-
-# def cpu_single_core():
-#     batch_size = 4
-#
-#     max_epoch = 1
-#
-#     # XLA distributed sampler for more than 1 TPU
-#     train_dataset = MRIDataset(is_tpu)
-#     train_loader = DataLoader(train_dataset, batch_size=8, shuffle=True, num_workers=0, pin_memory=False)
-#     criterion = torch.nn.L1Loss(reduction='mean')
-#
-#     print('Train without TPU')
-#     resnet = ResNetBasicBlock(batch_size=batch_size)
-#     optimizer = torch.optim.SGD(resnet.parameters(), lr=1e-4)
-#     train_with_cpu(train_loader, resnet, optimizer, criterion)
 
 
 def multi_core(index, flags):
@@ -109,10 +71,9 @@ def multi_core(index, flags):
             optimizer.zero_grad()
             print("Process", index, "saving scan")
             scans = batch['scans']
-            fnc = batch['fnc']
-            sbm = batch['sbm']
+            data = batch['data']
             targets = batch['targets']
-            output = model(fnc, sbm, scans)
+            output = model(data, scans)
             del scans
             loss = criterion(output, targets)
             del targets
@@ -147,34 +108,6 @@ def multi_core(index, flags):
     print("Process", index, "finished training. Train time was:", elapsed_train_time)
     torch.save(f'epoch: {epoch}, state_dict: {model.state_dict()}, validation loss: {val_loss}, optimizer: {optimizer.state_dict()}',
                f'{config.hyper_params["model_save_path"]}/validation_loss_{time.time()}.txt')
-
-
-
-# def dnn_train():
-#     training = TrendsDataset(mode='train')
-#     validation = TrendsDataset(mode='validation')
-#     train_loader = DataLoader(training, batch_size=1, num_workers=8)
-#     valid_loader = DataLoader(validation, batch_size=4, num_workers=8)
-#     model = TrendsDNNModel()
-#
-#     criterion = torch.nn.L1Loss(reduction='mean')
-#     optimizer = torch.optim.SGD(model.parameters(), lr=1e-4)
-#     # optimizer = torch.optim.Adam(model.parameters(), lr=1e-4, betas=config.hyper_params['betas'], eps=1e-08)
-#
-#     for epoch in range(30):
-#         model.train()
-#         loss_array = []
-#         for batch_num, batch in enumerate(train_loader):
-#             optimizer.zero_grad()
-#             sbm_data = batch['sbm_data']
-#             fnc_data = batch['fnc_data']
-#             targets = batch['targets']
-#             output = model(fnc_data, sbm_data)
-#             loss = criterion(output, targets)
-#             loss.backward()
-#             optimizer.step()
-#             loss_array.append(loss.item())
-#         print(f'loss average: {np.array(loss_array).mean()}')
 
 
 

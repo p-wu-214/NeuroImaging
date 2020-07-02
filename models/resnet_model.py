@@ -67,15 +67,16 @@ class ResNetBasicBlock(nn.Module):
     def __init__(self):
         super(ResNetBasicBlock, self).__init__()
         self.input_conv = nn.Conv3d(53, 64, stride=(1, 1, 1), kernel_size=(3, 3, 3), padding=(1, 1, 1))
-        self.input_batch = nn.BatchNorm3d(64)
-        self.input_relu = activation_func('relu')
-        self.input_max_pool = nn.MaxPool3d(kernel_size=(3, 3, 3), stride=2, padding=1)
         self.basic_block1 = BasicBlock(64, 64)
         self.expand_block1 = ExpandBlock(64, 64)
         self.basic_block2 = BasicBlock(128, 128)
         self.expand_block2 = ExpandBlock(128, 128)
-        self.average_pool = nn.AdaptiveAvgPool3d((15, 15, 15))
-        self.linear = nn.Linear(15*15*15*256, out_features=5, bias=True)
+        self.basic_block3 = BasicBlock(256, 256)
+        self.expand_block3 = ExpandBlock(256, 256)
+        self.basic_block4 = BasicBlock(512, 512)
+        self.average_pool = nn.AdaptiveAvgPool3d((30, 30, 30))
+        self.linear = nn.Linear(30*30*30*512, out_features=5, bias=True)
+        self.relu = nn.ReLU(inplace=True)
 
     def forward(self, x):
         x = self.input_conv(x)
@@ -83,8 +84,12 @@ class ResNetBasicBlock(nn.Module):
         x = self.expand_block1(x)
         x = self.basic_block2(x)
         x = self.expand_block2(x)
+        x = self.basic_block3(x)
+        x = self.expand_block3(x)
+        x = self.basic_block4(x)
         x = self.average_pool(x)
         x = x.view(config.hyper_params['batch'], -1)
         x = self.linear(x)
+        x = self.relu(x)
 
         return x
