@@ -1,4 +1,4 @@
-# NewsSummary
+# NeuroImaging
 
 # Basic Usage
 
